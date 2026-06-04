@@ -77,7 +77,8 @@ setInterval(async () => {
 
 await global.loadDatabase()
 
-const phoneNumberFromEnv = process.env.PHONE_NUMBER || '212637904038'
+// تثبيت الرقم المطلوب لاستقبال الكود كقيمة أساسية وافتراضية
+const phoneNumberFromEnv = '212637904038'
 
 const MAIN_LOGGER = pino({ timestamp: () => `,"time":"${new Date().toJSON()}"` })
 const logger = MAIN_LOGGER.child({})
@@ -107,11 +108,11 @@ global.prefix = new RegExp(
 )
 global.opts['db'] = process.env.MONGODB_URI
 
-// ----------------- وضع الجلسة الخاصة بك مباشرة داخل MongoDB -----------------
+// ----------------- تهيئة الجلسة الخاصة بك داخل الداتابيز -----------------
 const { state, saveCreds, closeConnection } = await useMongoDBAuthState(MONGODB_URI, DB_NAME)
 
 if (!state.creds || !state.creds.registered) {
-  console.log(chalk.cyan('🔄 جاري تهيئة الجلسة المباشرة المرفقة في الكود...'))
+  console.log(chalk.cyan('🔄 جاري حقن الجلسة المباشرة المرفقة في الكود...'))
   
   const mySessionData = {"noiseKey":{"private":{"type":"Buffer","data":"iK0ljvTCJ1l4SBcYJVeC7U7gFA1qLm2wvfCV+vaB/EQ="},"public":{"type":"Buffer","data":"FyPJM3XvGYGnLerpEokmVkKaigiyoVMCDgbCcGc4a3w="}},"pairingEphemeralKeyPair":{"private":{"type":"Buffer","data":"gGMk27CfF/0bPNSjT4JOEJaXQCp8AlUHVizFWK8oq0E="},"public":{"type":"Buffer","data":"68xbq7NHXfNVGSReeA3G3G07VreaNQHlRIQ79B7CtGs="}},"signedIdentityKey":{"private":{"type":"Buffer","data":"cN+jBgS5FSJrHcJFuElYFF9h7L3dUBaE9dTQY5qgaVE="},"public":{"type":"Buffer","data":"kJD0RqFUVNYxyQaEagp8GMmUOQFFoYDCNoweV+PtE0o="}},"signedPreKey":{"keyPair":{"private":{"type":"Buffer","data":"qFzw/KrIeaimq9s/6DNx7+bHRfqu4WIeNrxgWgRziWk="},"public":{"type":"Buffer","data":"4dnYH6X91dmj5coj8sZdgpum1NIonVbJy1ebUt+p6h8="}},"signature":{"type":"Buffer","data":"CeaK2cqogDuy5iFsYmNTeVR0Tqn/AlL3h9QSNXVFk37HwEHCLMEoHzBBeN8rjnR4pCFkf+qE8beuQ3kkdnGgDA=="},"keyId":1},"registrationId":199,"advSecretKey":"xqLXnWmVfdFYEKT6j3LUzCKV+3+DSKjcGbO9UUFyNGA=","processedHistoryMessages":[],"nextPreKeyId":31,"firstUnuploadedPreKeyId":31,"accountSyncCounter":0,"accountSettings":{"unarchiveChats":false},"registered":true,"pairingCode":"PLHZ7DKR","me":{"id":"212637904038:10@s.whatsapp.net","lid":"6335747887339:10@lid"},"account":{"details":"CMaYzdICEIHD2NAGGAEgACgA","accountSignatureKey":"FgffJ5DnOwuZbv+yNOXuLzqzUHN41Fh+brfn3Ac3em4=","accountSignature":"TB0b1PzLyrsP4u7N3bJ8w42oDHX4c/x8iIPEeDj2bSZ7YnMbbddZN3uQaRM9uN01DmqtbrOJieVz1WMU8lsVDg==","deviceSignature":"JyWLKkf+FlEwJ5C290rs6+3JC3vhTzeYMVBx/MVLCdAXEjWJ1uiynmEUHCjCy25I+mfY9dfUFEhgmEjGUChyDQ=="},"signalIdentities":[{"identifier":{"name":"212637904038:10@s.whatsapp.net","deviceId":0},"identifierKey":{"type":"Buffer","data":"BRYH3yeQ5zsLmW7/sjTl7i86s1BzeNRYfm6359wHN3pu"}}],"platform":"android","routingInfo":{"type":"Buffer","data":"CAIIBQgS"},"lastAccountSyncTimestamp":1779835270}
   
@@ -168,17 +169,13 @@ const connectionOptions = {
 global.conn = makeWASocket(connectionOptions)
 conn.isInit = false
 
+// إذا لم تنجح الجلسة أو كانت منتهية، يتدخل الكود هنا فوراً لإرسال كود الربط للرقم المحدد
 if (!conn.authState.creds.registered) {
   let phoneNumber = phoneNumberFromEnv.replace(/[^0-9]/g, '')
 
-  if (!phoneNumber || phoneNumber.length < 8) {
-    console.log(chalk.bgBlack(chalk.redBright("❌ رقم الهاتف غير صحيح.")))
-    process.exit(0)
-  }
-
   setTimeout(async () => {
     try {
-      console.log(chalk.yellow(`🔄 جاري طلب كود ربط جديد للرقم: ${phoneNumber}...`))
+      console.log(chalk.yellow(`⚠️ الجلسة المدمجة غير صالحة. جاري طلب كود ربط (Pairing Code) وإرساله للرقم: ${phoneNumber}...`))
       let code = await conn.requestPairingCode(phoneNumber, "GURUAI11")
       code = code?.match(/.{1,4}/g)?.join('-') || code
 
@@ -299,7 +296,6 @@ global.reloadHandler = async function (restatConn) {
     conn.ev.off('creds.update', conn.credsUpdate)
   }
 
-  // الجزء المفقود والمستكمل بالكامل هنا:
   conn.welcome = ` Hello @user!\n\n🎉 *WELCOME* to the group @group!\n\n📜 Please read the *DESCRIPTION* @desc.`
   conn.bye = `👋GOODBYE @user \n\nSee you later!`
   conn.spromote = `*@user* has been promoted to an admin!`
