@@ -17,6 +17,12 @@ let botStats = null
 const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
 const phoneNumber = process.env.PHONE_NUMBER || ''
 
+// تحديد مسار مجلد وملف الجلسة (session بدون s)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const sessionDir = path.join(__dirname, 'session')
+const credsFile = path.join(sessionDir, 'creds.json')
+
 figlet(
   'GURU BOT',
   {
@@ -53,9 +59,6 @@ const app = express()
 app.set('trust proxy', 1)
 const port = process.env.PORT || 5000
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
 app.use(express.static(path.join(__dirname, 'Assets')))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -90,9 +93,9 @@ app.listen(port, () => {
   console.log(chalk.green(`Server running on port ${port}`))
   console.log(chalk.cyan('Open your browser and navigate to:'))
   console.log(chalk.yellow(`http://localhost:${port}`))
-  
+
   startBot()
-  
+
   setInterval(requestBotStats, 30000)
 })
 
@@ -100,7 +103,7 @@ function startBot() {
   if (botProcess) return
 
   console.log(chalk.blue('Starting GURU Bot with:'))
-  console.log(chalk.blue(`MongoDB URI:`))
+  console.log(chalk.blue(`MongoDB URI`))
   console.log(chalk.blue(`Phone number is ${phoneNumber ? 'set' : 'not specified'}`))
 
   if (!mongodbUri) {
@@ -112,16 +115,38 @@ function startBot() {
     console.warn(chalk.yellow('PHONE_NUMBER environment variable is not set. You may need to enter it manually.'))
   }
 
+  // --- التحقق من ملف الجلسة داخل مجلد session ---
+  let shouldPair = 'true'
+  
+  if (fs.existsSync(credsFile)) {
+    try {
+      const rawData = fs.readFileSync(credsFile, 'utf8')
+      const creds = JSON.parse(rawData)
+      
+      if (creds && creds.registered) {
+        console.log(chalk.green('✅ تم العثور على ملف الجلسة (session/creds.json). جاري الاتصال تلقائياً...'))
+        shouldPair = 'false' 
+      }
+    } catch (e) {
+      console.error(chalk.red('⚠️ ملف creds.json تالف، سيتم الانتقال لوضع كود الربط.'))
+      shouldPair = 'true'
+    }
+  } else {
+    console.log(chalk.yellow('ℹ️ لم يتم العثور على جلسة سابقة في مجلد session. تفعيل وضع الـ Pair Code...'))
+    shouldPair = 'true'
+  }
+  // ------------------------------------------------
+
   const currentFilePath = new URL(import.meta.url).pathname
   const args = [path.join(path.dirname(currentFilePath), 'Guru.js'), ...process.argv.slice(2)]
-  
+
   const env = {
     ...process.env,
     MONGODB_URI: mongodbUri,
     PHONE_NUMBER: phoneNumber,
-    PAIRING_MODE: 'true'
+    PAIRING_MODE: shouldPair
   }
-  
+
   botProcess = spawn(process.argv[0], args, {
     stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     env
@@ -129,7 +154,7 @@ function startBot() {
 
   botProcess.on('message', data => {
     console.log(chalk.cyan(`✔️RECEIVED ${JSON.stringify(data)}`))
-    
+
     if (typeof data === 'object' && data.type === 'pairing-code') {
       pairingCode = data.code
       console.log(chalk.green(`Pairing code received: ${pairingCode}`))
@@ -169,7 +194,7 @@ function startBot() {
     console.error(chalk.red(`Error: ${err}`))
     botProcess.kill()
     botProcess = null
-    
+
     setTimeout(() => {
       console.log(chalk.yellow('Attempting to restart bot after error...'))
       startBot()
@@ -202,7 +227,7 @@ process.on('exit', code => {
 
 if (process.env.RENDER === 'true') {
   let serverUrl = null;
-  
+
   app.use((req, res, next) => {
     if (!serverUrl) {
       const host = req.get('host');
@@ -215,7 +240,7 @@ if (process.env.RENDER === 'true') {
     }
     next();
   });
-  
+
   setInterval(() => {
     if (serverUrl) {
       console.log(chalk.blue(`Pinging server URL: ${serverUrl}`));
