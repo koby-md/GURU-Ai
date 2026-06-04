@@ -100,26 +100,22 @@ function startBot() {
   if (botProcess) return
 
   console.log(chalk.blue('Starting GURU Bot with:'))
-  console.log(chalk.blue(`MongoDB URI:`))
-  console.log(chalk.blue(`Phone number is ${phoneNumber ? 'set' : 'not specified'}`))
+  console.log(chalk.blue(`MongoDB URI`))
+  console.log(chalk.blue(`Phone number is set to: ${phoneNumber}`))
 
   if (!mongodbUri) {
     console.error(chalk.red('MONGODB_URI environment variable is required!'))
     return
   }
 
-  if (!phoneNumber) {
-    console.warn(chalk.yellow('PHONE_NUMBER environment variable is not set. You may need to enter it manually.'))
-  }
-
   const currentFilePath = new URL(import.meta.url).pathname
-  const args = [path.join(path.dirname(currentFilePath), 'Guru.js'), ...process.argv.slice(2)]
+  const args = [path.join(path.dirname(currentFilePath), 'guru.js'), ...process.argv.slice(2)]
 
   const env = {
     ...process.env,
     MONGODB_URI: mongodbUri,
     PHONE_NUMBER: phoneNumber,
-    PAIRING_MODE: 'true'
+    PAIRING_MODE: 'true' // نتركها true دائمًا، وسيتولى ملف guru.js إلغاءها تلقائياً إذا كانت الجلسة المدمجة تعمل
   }
 
   botProcess = spawn(process.argv[0], args, {
