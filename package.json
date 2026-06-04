@@ -59,6 +59,7 @@
         "performance-now": "^2.1.0",
         "pino": "^8.6.1",
         "syntax-error": "^1.4.0",
+"jimp":"*",
         "url": "^0.11.0",
         "url-regex-safe": "^4.0.0",
         "wa-sticker-formatter": "^4.4.4",
