@@ -1,4 +1,4 @@
-Name: Deploy
+name: Deploy
 
 on:
   push:
@@ -12,6 +12,7 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    # هاد السطر كيعطي وقت محدد للـ Job كامل باش يطفى بزز
     timeout-minutes: 350 
 
     permissions:
@@ -20,13 +21,13 @@ jobs:
       actions: write
 
     steps:
-      # 1. إلغاء أي تشغيل قديم
+      # 1. أول حاجة كنلغيو أي تشغيل قديم باش ما يوقعش تضارب فالحساب
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.11.0
         with:
           access_token: ${{ github.token }}
 
-      # 2. نسخ الملفات
+      # 2. كننسخوا الملفات من السيرفر
       - name: Clone repository
         uses: actions/checkout@v4
 
@@ -36,13 +37,13 @@ jobs:
         with:
           node-version: 20
 
-      # 4. تثبيت أداة Bun
+      # 4. تثبيت أداة Bun (هادي هي اللي غتحل مشكل sh: 1: bun: not found)
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # 5. الكاش ديال الكود
+      # 5. الكاش ديال الكود باش يخدم السكربت أسرع المرة الجاية
       - name: Cache node_modules
         uses: actions/cache@v4
         with:
@@ -53,10 +54,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # 6. تثبيت المكتبات
+      # 6. تثبيت المكتبات (دابا غادي يدوز بنجاح لأن bun و node موجودين)
       - name: Install Dependencies
         run: npm install
 
-      # 7. تشغيل مشروع البوت مع تمرير المتغيرات من GitHub Secrets
-     
+      # 7. تشغيل مشروع البوت
+      - name: Start Project
+        # هنا كنقولو ليه طفي هاد المرحلة بزز قبل ما يوصل السقف ديال GitHub
+        timeout-minutes: 345 
         run: npm run start
