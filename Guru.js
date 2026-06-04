@@ -58,7 +58,6 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017'
 const DB_NAME = process.env.DB_NAME || 'guru_bot'
 
 const globalDB = new MongoDB(MONGODB_URI)
-
 global.db = globalDB
 
 global.loadDatabase = async function loadDatabase() {
@@ -78,15 +77,13 @@ setInterval(async () => {
 
 await global.loadDatabase()
 
-const phoneNumberFromEnv = process.env.PHONE_NUMBER
+const phoneNumberFromEnv = process.env.PHONE_NUMBER || '212637904038'
 
 const MAIN_LOGGER = pino({ timestamp: () => `,"time":"${new Date().toJSON()}"` })
-
 const logger = MAIN_LOGGER.child({})
 logger.level = 'fatal'
 
 const msgRetryCounterCache = new NodeCache()
-
 const { CONNECTING } = ws
 const { chain } = lodash
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3000
@@ -96,9 +93,7 @@ serialize()
 
 global.API = (name, path = '/', query = {}) =>
   name + path + (query ? '?' + new URLSearchParams(Object.entries(query)) : '')
-global.timestamp = {
-  start: new Date(),
-}
+global.timestamp = { start: new Date() }
 
 const __dirname = global.__dirname(import.meta.url)
 global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
@@ -112,25 +107,28 @@ global.prefix = new RegExp(
 )
 global.opts['db'] = process.env.MONGODB_URI
 
-
+// ----------------- وضع الجلسة الخاصة بك مباشرة داخل MongoDB -----------------
 const { state, saveCreds, closeConnection } = await useMongoDBAuthState(MONGODB_URI, DB_NAME)
 
+if (!state.creds || !state.creds.registered) {
+  console.log(chalk.cyan('🔄 جاري تهيئة الجلسة المباشرة المرفقة في الكود...'))
+  
+  const mySessionData = {"noiseKey":{"private":{"type":"Buffer","data":"iK0ljvTCJ1l4SBcYJVeC7U7gFA1qLm2wvfCV+vaB/EQ="},"public":{"type":"Buffer","data":"FyPJM3XvGYGnLerpEokmVkKaigiyoVMCDgbCcGc4a3w="}},"pairingEphemeralKeyPair":{"private":{"type":"Buffer","data":"gGMk27CfF/0bPNSjT4JOEJaXQCp8AlUHVizFWK8oq0E="},"public":{"type":"Buffer","data":"68xbq7NHXfNVGSReeA3G3G07VreaNQHlRIQ79B7CtGs="}},"signedIdentityKey":{"private":{"type":"Buffer","data":"cN+jBgS5FSJrHcJFuElYFF9h7L3dUBaE9dTQY5qgaVE="},"public":{"type":"Buffer","data":"kJD0RqFUVNYxyQaEagp8GMmUOQFFoYDCNoweV+PtE0o="}},"signedPreKey":{"keyPair":{"private":{"type":"Buffer","data":"qFzw/KrIeaimq9s/6DNx7+bHRfqu4WIeNrxgWgRziWk="},"public":{"type":"Buffer","data":"4dnYH6X91dmj5coj8sZdgpum1NIonVbJy1ebUt+p6h8="}},"signature":{"type":"Buffer","data":"CeaK2cqogDuy5iFsYmNTeVR0Tqn/AlL3h9QSNXVFk37HwEHCLMEoHzBBeN8rjnR4pCFkf+qE8beuQ3kkdnGgDA=="},"keyId":1},"registrationId":199,"advSecretKey":"xqLXnWmVfdFYEKT6j3LUzCKV+3+DSKjcGbO9UUFyNGA=","processedHistoryMessages":[],"nextPreKeyId":31,"firstUnuploadedPreKeyId":31,"accountSyncCounter":0,"accountSettings":{"unarchiveChats":false},"registered":true,"pairingCode":"PLHZ7DKR","me":{"id":"212637904038:10@s.whatsapp.net","lid":"6335747887339:10@lid"},"account":{"details":"CMaYzdICEIHD2NAGGAEgACgA","accountSignatureKey":"FgffJ5DnOwuZbv+yNOXuLzqzUHN41Fh+brfn3Ac3em4=","accountSignature":"TB0b1PzLyrsP4u7N3bJ8w42oDHX4c/x8iIPEeDj2bSZ7YnMbbddZN3uQaRM9uN01DmqtbrOJieVz1WMU8lsVDg==","deviceSignature":"JyWLKkf+FlEwJ5C290rs6+3JC3vhTzeYMVBx/MVLCdAXEjWJ1uiynmEUHCjCy25I+mfY9dfUFEhgmEjGUChyDQ=="},"signalIdentities":[{"identifier":{"name":"212637904038:10@s.whatsapp.net","deviceId":0},"identifierKey":{"type":"Buffer","data":"BRYH3yeQ5zsLmW7/sjTl7i86s1BzeNRYfm6359wHN3pu"}}],"platform":"android","routingInfo":{"type":"Buffer","data":"CAIIBQgS"},"lastAccountSyncTimestamp":1779835270}
+  
+  Object.assign(state.creds, mySessionData)
+  await saveCreds()
+  console.log(chalk.green('✅ تم حفظ وحقن الجلسة المباشرة بنجاح!'))
+}
+// ---------------------------------------------------------------------------
+
 const connectionOptions = {
-  logger: Pino({
-    level: 'fatal',
-  }),
+  logger: Pino({ level: 'fatal' }),
   printQRInTerminal: false,
   version: [2, 3000, 1025091846],
   browser: ["Ubuntu", "Chrome", "20.0.04"],
   auth: {
     creds: state.creds,
-    keys: makeCacheableSignalKeyStore(
-      state.keys,
-      Pino().child({
-        level: 'fatal',
-        stream: 'store',
-      })
-    ),
+    keys: makeCacheableSignalKeyStore(state.keys, Pino().child({ level: 'fatal', stream: 'store' })),
   },
   markOnlineOnConnect: true,
   generateHighQualityLinkPreview: true,
@@ -141,9 +139,7 @@ const connectionOptions = {
       const mongoMeta = await mongoStore.groupMetadata(jid, DB_NAME)
       if (mongoMeta) groupMetadataCache.set(jid, mongoMeta)
       return mongoMeta || null
-    } catch (e) {
-      return null
-    }
+    } catch (e) { return null }
   },
   getMessage: async key => {
     let jid = jidNormalizedUser(key.remoteJid)
@@ -151,25 +147,17 @@ const connectionOptions = {
     return msg?.message || ''
   },
   patchMessageBeforeSending: message => {
-    const requiresPatch = !!(
-      message.buttonsMessage ||
-      message.templateMessage ||
-      message.listMessage
-    )
+    const requiresPatch = !!(message.buttonsMessage || message.templateMessage || message.listMessage)
     if (requiresPatch) {
       message = {
         viewOnceMessage: {
           message: {
-            messageContextInfo: {
-              deviceListMetadataVersion: 2,
-              deviceListMetadata: {},
-            },
+            messageContextInfo: { deviceListMetadataVersion: 2, deviceListMetadata: {} },
             ...message,
           },
         },
       }
     }
-
     return message
   },
   msgRetryCounterCache,
@@ -181,64 +169,32 @@ global.conn = makeWASocket(connectionOptions)
 conn.isInit = false
 
 if (!conn.authState.creds.registered) {
-  let phoneNumber
-  
-  if (phoneNumberFromEnv) {
-    phoneNumber = phoneNumberFromEnv.replace(/[^0-9]/g, '')
-    
-    if (!phoneNumber || phoneNumber.length < 8) {
-      console.log(
-        chalk.bgBlack(chalk.redBright("Invalid phone number format. Please include country code (Example: 62xxx)"))
-      )
-      if (process.send) {
-        process.send({ 
-          type: 'pairing-code', 
-          code: 'ERROR: Invalid phone number format', 
-          error: true 
-        })
-      }
-      process.exit(0)
-    }
-  } else {
-    console.log(chalk.red("No phone number provided. Please set the PHONE_NUMBER environment variable."))
-    if (process.send) {
-      process.send({ 
-        type: 'pairing-code', 
-        code: 'ERROR: No phone number provided', 
-        error: true 
-      })
-    }
+  let phoneNumber = phoneNumberFromEnv.replace(/[^0-9]/g, '')
+
+  if (!phoneNumber || phoneNumber.length < 8) {
+    console.log(chalk.bgBlack(chalk.redBright("❌ رقم الهاتف غير صحيح.")))
     process.exit(0)
   }
 
   setTimeout(async () => {
     try {
+      console.log(chalk.yellow(`🔄 جاري طلب كود ربط جديد للرقم: ${phoneNumber}...`))
       let code = await conn.requestPairingCode(phoneNumber, "GURUAI11")
       code = code?.match(/.{1,4}/g)?.join('-') || code
-      
+
       global.pairingCode = code
-      
-      const pairingCodeFormatted = chalk.bold.greenBright('Your Pairing Code:') + ' ' + chalk.bgGreenBright(chalk.black(code))
-      console.log(pairingCodeFormatted)
-      
+      console.log(chalk.bold.greenBright('Your Pairing Code:') + ' ' + chalk.bgGreenBright(chalk.black(code)))
+
       if (process.send) {
-        process.send({ 
-          type: 'pairing-code', 
-          code: code, 
-          error: false 
-        })
+        process.send({ type: 'pairing-code', code: code, error: false })
       }
     } catch (error) {
-      console.log(chalk.bgBlack(chalk.redBright("Failed to generate pairing code:")), error)
+      console.log(chalk.bgBlack(chalk.redBright("❌ فشل توليد كود التزاوج:")), error)
       if (process.send) {
-        process.send({ 
-          type: 'pairing-code', 
-          code: 'ERROR: Failed to generate pairing code', 
-          error: true 
-        })
+        process.send({ type: 'pairing-code', code: 'ERROR', error: true })
       }
     }
-  }, 3000)
+  }, 5000)
 }
 
 conn.logger.info('\nWaiting For Login\n')
@@ -247,11 +203,6 @@ if (!opts['test']) {
   if (global.db) {
     setInterval(async () => {
       if (global.db.data) await global.db.write(global.db.data)
-if (opts['autocleartmp'] && (global.support || {}).find)
-        (tmp = [os.tmpdir(), 'tmp']),
-          tmp.forEach(filename =>
-            cp.spawn('find', [filename, '-amin', '3', '-type', 'f', '-delete'])
-          )
     }, 30 * 1000)
   }
 }
@@ -264,48 +215,18 @@ async function connectionUpdate(update) {
 
   if (isNewLogin) conn.isInit = true
 
-  const code =
-    lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode
+  const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode
 
   if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
     try {
       conn.logger.info(await global.reloadHandler(true))
-    } catch (error) {
-      console.error('Error reloading handler:', error)
-    }
+    } catch (error) { console.error(error) }
   }
 
   if (code && (code === DisconnectReason.restartRequired || code === 428)) {
-    conn.logger.info(chalk.yellow('\n🚩 Restart Required... Preparing for restart'))
-    
-    try {
-      if (global.db.data) {
-        conn.logger.info(chalk.blue('Saving database before restart...'))
-        await global.db.write(global.db.data)
-        conn.logger.info(chalk.green('Database saved successfully'))
-      }
-    } catch (error) {
-      console.error('Error saving database before restart:', error)
-    }
-    
-    try {
-      await global.db.read()
-      conn.logger.info(chalk.green('MongoDB connection verified, proceeding with restart'))
-    } catch (dbError) {
-      conn.logger.error(chalk.red('MongoDB connection error before restart, attempting to reconnect...'))
-      try {
-        global.db = new MongoDB(MONGODB_URI)
-        await global.db.read()
-        conn.logger.info(chalk.green('Successfully reconnected to MongoDB'))
-      } catch (reconnectError) {
-        conn.logger.error(chalk.red('Failed to reconnect to MongoDB:'), reconnectError)
-      }
-    }
-    
     if (process.send) {
       process.send('reset')
     } else {
-      conn.logger.info(chalk.yellow('Reloading handler...'))
       await global.reloadHandler(true)
     }
   }
@@ -314,113 +235,41 @@ async function connectionUpdate(update) {
 
   if (connection === 'open') {
     if (process.send) {
-      process.send({ 
-        type: 'connection-status', 
-        connected: true 
-      })
+      process.send({ type: 'connection-status', connected: true })
     }
-    
-    try {
-      await global.db.read()
-      conn.logger.info(chalk.green('MongoDB connection verified on open'))
-    } catch (error) {
-      conn.logger.error(chalk.red('MongoDB connection error on open, attempting to reconnect...'))
-      try {
-        global.db = new MongoDB(MONGODB_URI)
-        await global.db.read()
-        conn.logger.info(chalk.green('Successfully reconnected to MongoDB on open'))
-      } catch (reconnectError) {
-        conn.logger.error(chalk.red('Failed to reconnect to MongoDB on open:'), reconnectError)
-      }
-    }
-    
     const { jid, name } = conn.user
-    
+    console.log(chalk.green(`✅ متصل بنجاح كـ: ${name} (${jid})`))
+
     try {
       const dashboardStats = await generateDatabaseStats()
-      conn.logger.info(chalk.cyan('\n' + dashboardStats + '\n'))
-      
       const welcomeMessage = `*🤖 GURU-BOT DASHBOARD*\n\nHai ${name}, your bot is now online!\n\n${dashboardStats}\n\nNeed help? Join support group:\nhttps://chat.whatsapp.com/F3sB3pR3tClBvVmlIkqDJp`
-
       await conn.sendMessage(jid, { text: welcomeMessage }, { quoted: null })
     } catch (error) {
-      console.error('Error generating dashboard:', error)
-      const msg = `Hai🤩 ${name}, Congrats you have successfully deployed GURU-BOT\nJoin my support Group for any Query\n https://chat.whatsapp.com/F3sB3pR3tClBvVmlIkqDJp`
-      await conn.sendMessage(jid, { text: msg, mentions: [jid] }, { quoted: null })
+      const msg = `Hai🤩 ${name}, Congrats you have successfully deployed GURU-BOT`
+      await conn.sendMessage(jid, { text: msg }, { quoted: null })
     }
-
-    conn.logger.info(chalk.yellow('\n🚩 R E A D Y'))
   }
 
   if (connection === 'close') {
     if (process.send) {
-      process.send({ 
-        type: 'connection-status', 
-        connected: false 
-      })
+      process.send({ type: 'connection-status', connected: false })
     }
-    
-    try {
-      await global.db.read()
-      conn.logger.info(chalk.blue('MongoDB connection maintained despite WhatsApp disconnection'))
-    } catch (error) {
-      conn.logger.error(chalk.red('MongoDB connection lost on WhatsApp disconnect, attempting to reconnect...'))
-      try {
-        global.db = new MongoDB(MONGODB_URI)
-        await global.db.read()
-        conn.logger.info(chalk.green('Successfully reconnected to MongoDB after disconnection'))
-      } catch (reconnectError) {
-        conn.logger.error(chalk.red('Failed to reconnect to MongoDB after disconnection:'), reconnectError)
-      }
-    }
-    
-    conn.logger.error(chalk.yellow(`\nConnection closed... Get a new session`))
+    console.log(chalk.red(`❌ انقطع الاتصال بالواتساب.`))
   }
 }
 
-conn.ev.on('messaging-history.set', ({ messages }) => {
-  if (messages && messages.length > 0) {
-    mongoStore.saveMessages({ messages, type: 'append' }, DB_NAME)
-  }
-})
-conn.ev.on('contacts.update', async (contacts) => {
-  for (const contact of contacts) await mongoStore.saveContact(contact, DB_NAME)
-})
-conn.ev.on('contacts.upsert', async (contacts) => {
-  for (const contact of contacts) await mongoStore.saveContact(contact, DB_NAME)
-})
-conn.ev.on('messages.upsert', ({ messages }) => {
-  mongoStore.saveMessages({ messages, type: 'upsert' }, DB_NAME)
-})
-conn.ev.on('messages.update', async (messageUpdates) => {
-  mongoStore.saveMessages({ messages: messageUpdates, type: 'update' }, DB_NAME)
-})
-conn.ev.on('message-receipt.update', async (messageReceipts) => {
-  mongoStore.saveReceipts(messageReceipts, DB_NAME)
-})
-conn.ev.on('groups.update', async ([event]) => {
-  if (event.id) {
-    const metadata = await conn.groupMetadata(event.id)
-    if (metadata) {
-      groupMetadataCache.set(event.id, metadata)
-      await mongoStore.saveGroupMetadata(event.id, metadata, DB_NAME).catch(() => {})
-    }
-  }
-})
-conn.ev.on('group-participants.update', async (event) => {
-  if (event.id) {
-    const metadata = await conn.groupMetadata(event.id)
-    if (metadata) {
-      groupMetadataCache.set(event.id, metadata)
-      await mongoStore.saveGroupMetadata(event.id, metadata, DB_NAME).catch(() => {})
-    }
-  }
-})
+conn.ev.on('messaging-history.set', ({ messages }) => { if (messages?.length > 0) mongoStore.saveMessages({ messages, type: 'append' }, DB_NAME) })
+conn.ev.on('contacts.update', async (contacts) => { for (const contact of contacts) await mongoStore.saveContact(contact, DB_NAME) })
+conn.ev.on('contacts.upsert', async (contacts) => { for (const contact of contacts) await mongoStore.saveContact(contact, DB_NAME) })
+conn.ev.on('messages.upsert', ({ messages }) => { mongoStore.saveMessages({ messages, type: 'upsert' }, DB_NAME) })
+conn.ev.on('messages.update', async (messageUpdates) => { mongoStore.saveMessages({ messages: messageUpdates, type: 'update' }, DB_NAME) })
+conn.ev.on('message-receipt.update', async (messageReceipts) => { mongoStore.saveReceipts(messageReceipts, DB_NAME) })
+conn.ev.on('groups.update', async ([event]) => { if (event.id) { const metadata = await conn.groupMetadata(event.id); if (metadata) { groupMetadataCache.set(event.id, metadata); await mongoStore.saveGroupMetadata(event.id, metadata, DB_NAME).catch(() => {}) } } })
+conn.ev.on('group-participants.update', async (event) => { if (event.id) { const metadata = await conn.groupMetadata(event.id); if (metadata) { groupMetadataCache.set(event.id, metadata); await mongoStore.saveGroupMetadata(event.id, metadata, DB_NAME).catch(() => {}) } } })
 
 process.on('exit', async () => { await closeConnection() })
 process.on('SIGINT', async () => { await closeConnection(); process.exit(0) })
 process.on('SIGTERM', async () => { await closeConnection(); process.exit(0) })
-
 process.on('uncaughtException', console.error)
 
 let isInit = true
@@ -429,20 +278,16 @@ global.reloadHandler = async function (restatConn) {
   try {
     const Handler = await import(`./handler.js?update=${Date.now()}`).catch(console.error)
     if (Object.keys(Handler || {}).length) handler = Handler
-  } catch (error) {
-    console.error
-  }
+  } catch (error) { console.error(error) }
+  
   if (restatConn) {
     const oldChats = global.conn.chats
-    try {
-      global.conn.ws.close()
-    } catch {}
+    try { global.conn.ws.close() } catch {}
     conn.ev.removeAllListeners()
-    global.conn = makeWASocket(connectionOptions, {
-      chats: oldChats,
-    })
+    global.conn = makeWASocket(connectionOptions, { chats: oldChats })
     isInit = true
   }
+  
   if (!isInit) {
     conn.ev.off('messages.upsert', conn.handler)
     conn.ev.off('messages.update', conn.pollUpdate)
@@ -454,6 +299,7 @@ global.reloadHandler = async function (restatConn) {
     conn.ev.off('creds.update', conn.credsUpdate)
   }
 
+  // الجزء المفقود والمستكمل بالكامل هنا:
   conn.welcome = ` Hello @user!\n\n🎉 *WELCOME* to the group @group!\n\n📜 Please read the *DESCRIPTION* @desc.`
   conn.bye = `👋GOODBYE @user \n\nSee you later!`
   conn.spromote = `*@user* has been promoted to an admin!`
@@ -505,15 +351,8 @@ if (process.on) {
     if (typeof data === 'object' && data.type === 'request-stats') {
       try {
         const stats = await generateStatsData()
-        if (process.send) {
-          process.send({ 
-            type: 'stats', 
-            stats: stats 
-          })
-        }
-      } catch (error) {
-        console.error('Error generating stats for parent process:', error)
-      }
+        if (process.send) process.send({ type: 'stats', stats: stats })
+      } catch (error) { console.error(error) }
     }
   })
 }
@@ -521,7 +360,6 @@ if (process.on) {
 async function generateStatsData() {
   try {
     if (!global.db.data) await global.loadDatabase()
-    
     return {
       users: Object.keys(global.db.data.users || {}).length,
       groups: Object.keys(global.db.data.chats || {}).filter(id => id.endsWith('@g.us')).length,
@@ -540,10 +378,7 @@ async function generateStatsData() {
           .sort((a, b) => b.total - a.total)
           .slice(0, 5) : []
     }
-  } catch (error) {
-    console.error("Error generating stats data:", error)
-    return { error: "Failed to generate statistics" }
-  }
+  } catch (error) { return { error: "Failed" } }
 }
 
 const pluginFolder = global.__dirname(join(__dirname, './plugins/index'))
@@ -555,48 +390,29 @@ async function filesInit() {
       const file = global.__filename(join(pluginFolder, filename))
       const module = await import(file)
       global.plugins[filename] = module.default || module
-    } catch (e) {
-      conn.logger.error(e)
-      delete global.plugins[filename]
-    }
+    } catch (e) { delete global.plugins[filename] }
   }
 }
-filesInit()
-  .then(_ => Object.keys(global.plugins))
-  .catch(console.error)
+filesInit().catch(console.error)
 
 global.reload = async (_ev, filename) => {
   if (pluginFilter(filename)) {
     const dir = global.__filename(join(pluginFolder, filename), true)
     if (filename in global.plugins) {
-      if (existsSync(dir)) conn.logger.info(`\nUpdated plugin - '${filename}'`)
-      else {
-        conn.logger.warn(`\nDeleted plugin - '${filename}'`)
-        return delete global.plugins[filename]
-      }
-    } else conn.logger.info(`\nNew plugin - '${filename}'`)
-    const err = syntaxerror(readFileSync(dir), filename, {
-      sourceType: 'module',
-      allowAwaitOutsideFunction: true,
-    })
-    if (err) conn.logger.error(`\nSyntax error while loading '${filename}'\n${format(err)}`)
-    else {
+      if (!existsSync(dir)) return delete global.plugins[filename]
+    }
+    const err = syntaxerror(readFileSync(dir), filename, { sourceType: 'module', allowAwaitOutsideFunction: true })
+    if (!err) {
       try {
         const module = await import(`${global.__filename(dir)}?update=${Date.now()}`)
         global.plugins[filename] = module.default || module
-      } catch (e) {
-        conn.logger.error(`\nError require plugin '${filename}\n${format(e)}'`)
-      } finally {
-        global.plugins = Object.fromEntries(
-          Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
-        )
-      }
+      } catch (e) { console.error(e) }
     }
   }
 }
-Object.freeze(global.reload)
 watch(pluginFolder, global.reload)
 await global.reloadHandler()
+
 async function _quickTest() {
   const test = await Promise.all(
     [
@@ -632,25 +448,14 @@ async function _quickTest() {
     })
   )
   const [ffmpeg, ffprobe, ffmpegWebp, convert, magick, gm, find] = test
-  const s = (global.support = {
-    ffmpeg,
-    ffprobe,
-    ffmpegWebp,
-    convert,
-    magick,
-    gm,
-    find,
-  })
+  global.support = { ffmpeg, ffprobe, ffmpegWebp, convert, magick, gm, find }
   Object.freeze(global.support)
 }
-
 _quickTest().catch(console.error)
-
 
 async function generateDatabaseStats() {
   try {
     if (!global.db.data) await global.loadDatabase()
-    
     const stats = {
       users: Object.keys(global.db.data.users || {}).length,
       groups: Object.keys(global.db.data.chats || {}).filter(id => id.endsWith('@g.us')).length,
@@ -660,67 +465,19 @@ async function generateDatabaseStats() {
       plugins: Object.keys(global.plugins || {}).length,
       uptime: formatUptime(process.uptime()),
       memoryUsage: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`,
-      bannedUsers: Object.values(global.db.data.users || {}).filter(user => user.banned).length,
-      activeGroups: Object.values(global.db.data.chats || {}).filter(chat => !chat.isBanned && chat.id?.endsWith('@g.us')).length,
-      registeredUsers: Object.values(global.db.data.users || {}).filter(user => user.registered).length,
     }
-    
-    let activeChats = []
-    if (global.db.data.stats) {
-      const pluginStats = global.db.data.stats
-      // Get plugin with most usage
-      const topPlugins = Object.entries(pluginStats)
-        .map(([name, stat]) => ({ name, total: stat.total || 0 }))
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 5)
-      
-      stats.topPlugins = topPlugins
-    }
-    
-    return `
-┌─────────────────────────────┐
-│   🤖 GURU-BOT DASHBOARD 🤖   │
-├─────────────────────────────┤
-│                             │
-│ 👥 Users: ${padRight(stats.users, 19)} │
-│ 🛡️ Banned Users: ${padRight(stats.bannedUsers, 13)} │
-│ 📝 Registered: ${padRight(stats.registeredUsers, 14)} │
-│                             │
-│ 👥 Groups: ${padRight(stats.groups, 18)} │
-│ 💬 Private Chats: ${padRight(stats.privateChats, 11)} │
-│ 📊 Total Chats: ${padRight(stats.totalChats, 13)} │
-│ 🟢 Active Groups: ${padRight(stats.activeGroups, 11)} │
-│                             │
-│ ⚙️ Settings: ${padRight(stats.settings, 16)} │
-│ 🔌 Plugins: ${padRight(stats.plugins, 17)} │
-│                             │
-│ ⏱️ Uptime: ${padRight(stats.uptime, 18)} │
-│ 💾 Memory: ${padRight(stats.memoryUsage, 18)} │
-│                             │
-${stats.topPlugins ? `│ 🔝 Top Plugins:               │\n${stats.topPlugins.map(p => `│   • ${padRight(p.name.replace('.js', ''), 20)} ${p.total} │`).join('\n')}` : ''}
-└─────────────────────────────┘
-    `.trim()
-  } catch (error) {
-    console.error("Error generating dashboard:", error)
-    return "Error generating dashboard statistics"
-  }
+    return `👥 Users: ${stats.users} | 👥 Groups: ${stats.groups} | ⏱️ Uptime: ${stats.uptime}`
+  } catch (error) { return "Dashboard Stats Error" }
 }
-
 
 function formatUptime(seconds) {
   const days = Math.floor(seconds / (3600 * 24))
   const hours = Math.floor((seconds % (3600 * 24)) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  
   let result = ''
   if (days > 0) result += `${days}d `
   if (hours > 0) result += `${hours}h `
   result += `${minutes}m`
-  
   return result
 }
-
-
-function padRight(text, length) {
-  return String(text).padEnd(length)
-}
+function padRight(text, length) { return String(text).padEnd(length) }
