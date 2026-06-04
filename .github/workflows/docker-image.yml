@@ -58,11 +58,5 @@ jobs:
         run: npm install
 
       # 7. تشغيل مشروع البوت مع تمرير المتغيرات من GitHub Secrets
-      - name: Start Project
-        timeout-minutes: 345 
-        env:
-          # هنا كنمررو الرابط السري ديال MongoDB والـ Port للبوت فاش يبغي يخدم
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          PORT: 5000
-          PHONE_NUMBER: 212637904038
+     
         run: npm run start
