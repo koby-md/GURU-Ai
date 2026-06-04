@@ -47,12 +47,11 @@ function startBot() {
 
   console.log(chalk.blue('🤖 Starting GURU Bot...'))
   
-  // حل مشكلة المسار: التأكد من استهداف ملف guru.js في المجلد الحالي بشكل صحيح ومتوافق مع Linux
-  const scriptPath = path.join(__dirname, 'guru.js')
+  // تعديل اسم الملف هنا إلى Guru.js بحرف كابيتال ليتطابق مع ملفك
+  const scriptPath = path.join(__dirname, 'Guru.js')
   
   if (!fs.existsSync(scriptPath)) {
-    console.error(chalk.red(`❌ خطأ فادح: لم يتم العثور على ملف guru.js في المسار المخطط له: ${scriptPath}`));
-    console.error(chalk.yellow(`يرجى التأكد من تسمية الملف بـ guru.js ووضعه في المجلد الرئيسي للسكربت.`));
+    console.error(chalk.red(`❌ خطأ: لم يتم العثور على ملف Guru.js في المسار: ${scriptPath}`));
     return
   }
 
@@ -76,7 +75,7 @@ function startBot() {
       if (data === 'reset') {
         botProcess.kill()
         botProcess = null
-        setTimeout(startBot, 5000) // ترك مهلة 5 ثوانٍ قبل إعادة التشغيل لتفادي حظر السيرفرات
+        setTimeout(startBot, 5000)
       }
     }
   })
@@ -85,8 +84,8 @@ function startBot() {
     botProcess = null
     console.error(chalk.red(`❌ البوت توقف، كود الخروج: ${code}`))
     if (code !== 0) {
-      console.log(chalk.yellow('جاري إعادة المحاولة بعد 10 ثوانٍ لتجنب الضغط على السيرفر...'))
-      setTimeout(startBot, 10000) // مهلة أمان ممددة
+      console.log(chalk.yellow('جاري إعادة المحاولة بعد 10 ثوانٍ...'))
+      setTimeout(startBot, 10000)
     }
   })
 
