@@ -17,12 +17,6 @@ let botStats = null
 const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
 const phoneNumber = process.env.PHONE_NUMBER || ''
 
-// تحديد مسار مجلد وملف الجلسة (session بدون s)
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const sessionDir = path.join(__dirname, 'session')
-const credsFile = path.join(sessionDir, 'creds.json')
-
 figlet(
   'GURU BOT',
   {
@@ -58,6 +52,9 @@ import rateLimit from 'express-rate-limit'
 const app = express()
 app.set('trust proxy', 1)
 const port = process.env.PORT || 5000
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 app.use(express.static(path.join(__dirname, 'Assets')))
 app.use(bodyParser.json())
@@ -103,7 +100,7 @@ function startBot() {
   if (botProcess) return
 
   console.log(chalk.blue('Starting GURU Bot with:'))
-  console.log(chalk.blue(`MongoDB URI`))
+  console.log(chalk.blue(`MongoDB URI:`))
   console.log(chalk.blue(`Phone number is ${phoneNumber ? 'set' : 'not specified'}`))
 
   if (!mongodbUri) {
@@ -115,28 +112,6 @@ function startBot() {
     console.warn(chalk.yellow('PHONE_NUMBER environment variable is not set. You may need to enter it manually.'))
   }
 
-  // --- التحقق من ملف الجلسة داخل مجلد session ---
-  let shouldPair = 'true'
-  
-  if (fs.existsSync(credsFile)) {
-    try {
-      const rawData = fs.readFileSync(credsFile, 'utf8')
-      const creds = JSON.parse(rawData)
-      
-      if (creds && creds.registered) {
-        console.log(chalk.green('✅ تم العثور على ملف الجلسة (session/creds.json). جاري الاتصال تلقائياً...'))
-        shouldPair = 'false' 
-      }
-    } catch (e) {
-      console.error(chalk.red('⚠️ ملف creds.json تالف، سيتم الانتقال لوضع كود الربط.'))
-      shouldPair = 'true'
-    }
-  } else {
-    console.log(chalk.yellow('ℹ️ لم يتم العثور على جلسة سابقة في مجلد session. تفعيل وضع الـ Pair Code...'))
-    shouldPair = 'true'
-  }
-  // ------------------------------------------------
-
   const currentFilePath = new URL(import.meta.url).pathname
   const args = [path.join(path.dirname(currentFilePath), 'Guru.js'), ...process.argv.slice(2)]
 
@@ -144,7 +119,7 @@ function startBot() {
     ...process.env,
     MONGODB_URI: mongodbUri,
     PHONE_NUMBER: phoneNumber,
-    PAIRING_MODE: shouldPair
+    PAIRING_MODE: 'true'
   }
 
   botProcess = spawn(process.argv[0], args, {
